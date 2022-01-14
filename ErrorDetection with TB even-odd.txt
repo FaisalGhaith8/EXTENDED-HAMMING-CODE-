@@ -1,0 +1,135 @@
+
+//this module is used to detect errors, if any occurs
+//DTC = Data To Check
+module ErrorDetection(syn,DTC,EvenOdd);
+  input [12:0] DTC;
+  input EvenOdd;
+  output [4:0] syn; //syn = syndrome
+  
+  //generating syn bits for the single error correction
+  xor syn1 (syn[1],DTC[1],DTC[3],DTC[5],DTC[7],DTC[9],DTC[11],EvenOdd);
+  xor syn2 (syn[2],DTC[2],DTC[3],DTC[6],DTC[7],DTC[10],DTC[11],EvenOdd);
+  xor syn3 (syn[3],DTC[4],DTC[5],DTC[6],DTC[7],DTC[12],EvenOdd);
+  xor syn4 (syn[4],DTC[8],DTC[9],DTC[10],DTC[11],DTC[12],EvenOdd);
+	
+  //generating check bit for the double error detection
+  assign syn[0] = ^DTC[12:0]^EvenOdd;
+
+endmodule
+
+
+
+/*even parity is used here*/
+module ErrorDetection_TB;
+  reg [12:0] DTC;
+  wire [4:0] syn;
+  reg [12:0] ORG;
+  reg EO=0;
+  ErrorDetection ED(syn,DTC,EO);
+  
+  initial begin
+    
+    /************case 1 : correct data ************/
+    #1 $display("case 1 : Data with no error");
+    
+    //example 1
+     DTC =13'b0000000111100;
+    #1 $display("example 1 : DATA = %b  \t\t  syn= %b",DTC,syn);
+    //example 2
+     DTC =13'b0000001101001;
+    #1 $display("example 2 : DATA = %b  \t\t  syn= %b",DTC,syn);
+    //example 3
+     DTC =13'b0011001101111;
+    #1 $display("example 3 : DATA = %b  \t\t  syn= %b \n\n",DTC,syn);
+    
+    /******case 2 : data with one bit error ******/
+    #1 $display("case 2 : Data with one bit error");
+    ORG =13'b0000000111100;
+    DTC =13'b0000010111100;  //7th bit is flipped
+    #1 $display("example 1 :OriginalData = %b \t CorruptedDATA = %b  \t\t  syn= %b",ORG,DTC,syn);
+    ORG =13'b0000001101001;
+    DTC =13'b0000001101000;  //0th bit is flipped
+    #1 $display("example 2 :OriginalData = %b \t CorruptedDATA = %b  \t\t  syn= %b",ORG,DTC,syn);
+    ORG =13'b0011001101111;
+    DTC =13'b1011001101111;  //12th bit is flipped
+    #1 $display("example 3 :OriginalData = %b \t CorruptedDATA = %b  \t\t  syn= %b \n\n",ORG,DTC,syn);
+    
+    
+    /******case 3 : data with two bits error ******/
+    #1 $display("case 3 : Data with two bits errors");
+    ORG =13'b0000000111100;
+    DTC =13'b0000011111100;  //6th and 7th bits are flipped
+    #1 $display("example 1 :OriginalData = %b \t CorruptedDATA = %b  \t\t  syn= %b",ORG,DTC,syn);
+    ORG =13'b0000001101001;
+    DTC =13'b0000101101000;  //0th and 8th bits are flipped
+    #1 $display("example 2 :OriginalData = %b \t CorruptedDATA = %b  \t\t  syn= %b",ORG,DTC,syn);
+    ORG =13'b0011001101111;
+    DTC =13'b1011001001111;  //5th and 12th bit are flipped
+    #1 $display("example 3 :OriginalData = %b \t CorruptedDATA = %b  \t\t  syn= %b",ORG,DTC,syn);
+    
+  end
+  
+  
+endmodule
+  
+
+
+/*Odd parity is used here*/
+/*please comment down the upper test bench and un comment the below to see the results*/
+/*we can't simply change the parity from even to odd, because the data is encoded in one format*/
+
+// module ErrorDetection_TB;
+//   reg [12:0] DTC;
+//   wire [4:0] syn;
+//   reg [12:0] ORG;
+//   reg EO=1;
+//   ErrorDetection ED(syn,DTC,EO);
+  
+//   initial begin
+    
+//     /************case 1 : correct data ************/
+//     #1 $display("case 1 : Data with no error");
+    
+//     //example 1
+//      DTC =13'b0001010001101;
+//     #1 $display("example 1 : DATA = %b  \t\t  syn= %b",DTC,syn);
+//     //example 2
+//      DTC =13'b1011001101001;
+//     #1 $display("example 2 : DATA = %b  \t\t  syn= %b",DTC,syn);
+//     //example 3
+//      DTC =13'b1111111110110;
+//     #1 $display("example 3 : DATA = %b  \t\t  syn= %b \n\n",DTC,syn);
+    
+//     /******case 2 : data with one bit error ******/
+//     #1 $display("case 2 : Data with one bit error");
+//     ORG =13'b0001010001101;
+//     DTC =13'b0011010001101;  //10th bit is flipped
+//     #1 $display("example 1 :OriginalData = %b \t CorruptedDATA = %b  \t\t  syn= %b",ORG,DTC,syn);
+//     ORG =13'b1011001101001;
+//     DTC =13'b1011001101000;  //0th bit is flipped
+//     #1 $display("example 2 :OriginalData = %b \t CorruptedDATA = %b  \t\t  syn= %b",ORG,DTC,syn);
+//     ORG =13'b1111111110110;
+//     DTC =13'b1111101110110;  //7th bit is flipped
+//     #1 $display("example 3 :OriginalData = %b \t CorruptedDATA = %b  \t\t  syn= %b \n\n",ORG,DTC,syn);
+    
+    
+//     /******case 3 : data with two bits error ******/
+//     #1 $display("case 3 : Data with two bits errors");
+//     ORG =13'b0001010001101;
+//     DTC =13'b0011010001111;  //1st and 10th bits are flipped
+//     #1 $display("example 1 :OriginalData = %b \t CorruptedDATA = %b  \t\t  syn= %b",ORG,DTC,syn);
+//     ORG =13'b1011001101001;
+//     DTC =13'b1011001001000;  //0th and 5th bits are flipped
+//     #1 $display("example 2 :OriginalData = %b \t CorruptedDATA = %b  \t\t  syn= %b",ORG,DTC,syn);
+//     ORG =13'b1111111110110;
+//     DTC =13'b0111101110110;  //7th and 12th bits are flipped
+//     #1 $display("example 3 :OriginalData = %b \t CorruptedDATA = %b  \t\t  syn= %b",ORG,DTC,syn);
+    
+//   end
+  
+  
+// endmodule
+  
+
+
+

@@ -1,0 +1,148 @@
+
+module ErrorCorrection(CD,DTC,syn);
+  output reg [12:0] CD; //Corrected Data
+  input [12:0] DTC; //data to correct
+  input [4:0] syn; //syndrome from the Error detection module
+  
+  always @(*) begin
+    if(syn[4:0] == 5'b00000) //case 1: no error
+    begin
+      CD=DTC;
+    end
+    else if(syn[4:1] != 5'b00000 && syn[0]==1)//case 2: one bit error -----> correct the error
+      begin
+        CD=DTC;
+        CD[syn[4:1]]= ~CD[syn[4:1]]; //toggle the bit with the error
+        
+      end
+    else //case 3: double error 
+      begin
+        $display("there is double errors in the data !!!");
+        CD=DTC; // output the corrupted data without modification
+    end
+    
+  end
+  
+  
+endmodule 
+/*** test bench for the ErrorCorrection module***/
+/*even parity test*/
+module ErrorCorrection_TB;
+  reg [12:0] OED;
+  reg [12:0] DTC;
+  reg [4:0] syn;
+  wire [12:0] CD;
+  
+  ErrorCorrection EC(CD,DTC,syn);
+  
+  initial begin
+    /******** CASE 1 data with no errors ********/
+    $display("case 1 : Data with no error\n");
+    DTC=13'b0000000111100;
+    syn=5'b00000;
+    #1 $display("example 1 : Original encoded data = %b \t syn = %b \t the corrected data = %b ",DTC,syn,CD);
+	
+    DTC=13'b0011001101111;
+    syn=5'b00000;
+    #1 $display("example 2 : Original encoded data = %b \t syn = %b \t the corrected data = %b \n\n",DTC,syn,CD);
+
+       /******** CASE 2 data with one bit flipped ********/
+    $display("case 2 : Data with one bit flipped\n");
+    OED=13'b0000000111100;
+    DTC=13'b0000010111100;
+    syn=5'b01111;
+    #1 $display("example 1 : Original encoded data = %b\t Corrupted Data = %b\t syn = %b\t corrected data by the module = %b ",OED,DTC,syn,CD);
+
+    OED=13'b0011001101111;
+    DTC=13'b1011001101111;
+    syn=5'b11001;
+    #1 $display("example 2 : Original encoded data = %b\t Corrupted Data = %b\t syn = %b\t corrected data by the module = %b\n\n",OED,DTC,syn,CD);
+    
+    
+       /******** CASE 3 data with two errors ********/
+    $display("case 3 : Data with one bit flipped\n");
+    OED=13'b0000000111100;
+    DTC=13'b0000011111100;
+    syn=5'b00010;
+    #1 $display("example 1 : Original encoded data = %b\t Corrupted Data = %b\t syn = %b\t output of the module = %b ",OED,DTC,syn,CD);
+    
+    OED=13'b0011001101111;
+    DTC=13'b1011001001111;
+    syn=5'b10010;
+    #1 $display("example 2 : Original encoded data = %b\t Corrupted Data = %b\t syn = %b\t output of the module = %b\n\n",OED,DTC,syn,CD);
+    
+    
+  end
+    
+endmodule
+
+
+
+
+
+
+
+
+
+// /*odd parity test*/
+
+// /*** test bench for the ErrorCorrection module***/
+// module ErrorCorrection_TB;
+//   reg [12:0] OED;
+//   reg [12:0] DTC;
+//   reg [4:0] syn;
+//   wire [12:0] CD;
+  
+//   ErrorCorrection EC(CD,DTC,syn);
+  
+//   initial begin
+//     /******** CASE 1 data with no errors ********/
+//     $display("case 1 : Data with no error\n");
+//     DTC=13'b0001010001101;
+//     syn=5'b00000;
+//     #1 $display("example 1 : Original encoded data = %b \t syn = %b \t the corrected data = %b ",DTC,syn,CD);
+	
+//     DTC=13'b1011001101001;
+//     syn=5'b00000;
+//     #1 $display("example 2 : Original encoded data = %b \t syn = %b \t the corrected data = %b \n\n",DTC,syn,CD);
+
+//        /******** CASE 2 data with one bit flipped ********/
+//     $display("case 2 : Data with one bit flipped\n");
+//     OED=13'b0001010001101;
+//     DTC=13'b0011010001101;  
+//     syn=5'b10101;
+//     #1 $display("example 1 : Original encoded data = %b\t Corrupted Data = %b\t syn = %b\t corrected data by the module = %b ",OED,DTC,syn,CD);
+
+//     OED=13'b1011001101000;
+//     DTC=13'b1011011101000;  
+//     syn=5'b01111;
+//     #1 $display("example 2 : Original encoded data = %b\t Corrupted Data = %b\t syn = %b\t corrected data by the module = %b\n\n",OED,DTC,syn,CD);
+    
+    
+//        /******** CASE 3 data with two errors ********/
+//     $display("case 3 : Data with two bits flipped\n");
+//     OED=13'b0000000111100;
+//     DTC=13'b0011010001111;
+//     syn=5'b10110;
+//     #1 $display("example 1 : Original encoded data = %b\t Corrupted Data = %b\t syn = %b\t output of the module = %b ",OED,DTC,syn,CD);
+    
+//     OED=13'b1111111110110;
+//     DTC=13'b0111101110110;  
+//     syn=5'b10110;
+//     #1 $display("example 2 : Original encoded data = %b\t Corrupted Data = %b\t syn = %b\t output of the module = %b\n\n",OED,DTC,syn,CD);
+    
+    
+//   end
+    
+// endmodule
+  
+
+
+
+  
+
+
+
+
+
+

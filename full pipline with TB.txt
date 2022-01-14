@@ -1,0 +1,282 @@
+module pipeline(clk,EvenOdd);
+  input EvenOdd;//0 = even parity, 1 = odd parity TODO !!!
+  input clk;
+  reg [5:0] RDADDR=6'b111111; //similar to the PC regiter in MIPS CPU architecture
+  //why starting at such address instead of starting at address 0 (zero) ?
+  //in the first stage of the pipline it increments the memory location by one
+  //and it gets reflected directly on the memory, hence if we started at zero
+  //the first memory location that will get accessed is actually one(the first address)
+  //however if we inisialized the read address to 111111(points to the lat location)
+  //it will overflow after adding one to it and it will instead points to the 
+  //zero memory location (first location)
+
+  /*pipeline registers (buffers) between different stages*/
+  
+  
+  
+  /*S12_REG  (19-bits)*/
+  /*these registers can be combined into a single register
+  of size 19 bits , we splitted it to make the code more readable*/
+  reg [5:0] S12_WRADDR ;
+  reg [12:0] S12_DTC;
+  
+  /*S23_REG  (24-bits)*/
+  reg [5:0] S23_WRADDR;
+  reg [4:0] S23_syn;
+  reg [12:0] S23_DTC;
+  
+  /*S34_REG  (19-bits)*/
+  reg [5:0] S34_WRADDR;
+  reg [12:0] S34_CD;
+  
+  /*Registers declaration end*/
+  
+  
+  /*Stages wiring*/
+  /*stage 1 wires*/
+  wire [12:0]DTC_S1;
+  wire [5:0] WRADDR_S1;
+  assign WRADDR_S1=RDADDR;
+  
+  /*stage 2 wires and units*/
+  wire [12:0]DTC_S2;
+  wire [5:0] WRADDR_S2;
+  wire [4:0] syn_S2;
+  assign WRADDR_S2=S12_WRADDR;
+  assign DTC_S2=S12_DTC;
+  ErrorDetection EDstage(syn_S2,DTC_S2,EvenOdd);
+  
+  
+  /*stage 3 wires and units*/
+  wire [12:0]DTC_S3;
+  wire [5:0] WRADDR_S3;
+  wire [12:0] CD_S3;
+  wire [4:0] syn_S3;
+  assign syn_S3=S23_syn;
+  assign DTC_S3=S23_DTC;
+  assign WRADDR_S3 =S23_WRADDR;
+  ErrorCorrection ECstage(CD_S3,DTC_S3,syn_S3);
+  
+  /*stage 4 wires*/
+  wire [5:0] WRADDR_S4;
+  wire [12:0] CD_S4;
+  assign WRADDR_S4=S34_WRADDR;
+  assign CD_S4=S34_CD;
+  
+  
+  
+  memory DATAmemory(RDADDR,WRADDR_S4,CD_S4 /*DATAin*/,DTC_S1/*DATAout*/,clk);
+  
+  /*end of stages wiring*/
+
+  
+  always @(posedge clk)begin
+    /*STAGE 1*/
+    S12_DTC <= #1 DTC_S1;
+    S12_WRADDR <= #1 WRADDR_S1;
+    RDADDR = #1 RDADDR +1;
+    
+    /*STAGE 2*/
+    S23_WRADDR <= #1 WRADDR_S2;
+    S23_DTC <= #1 DTC_S2;
+    S23_syn <= #1 syn_S2;
+    
+    /*STAGE 3*/
+    S34_WRADDR = #1 WRADDR_S3;
+    S34_CD = #1 CD_S3;
+    
+    /*STAGE 4*/
+    //there is no need for a register between Stage 4 and Stage1
+    
+    //if(RDADDR==62)begin $finish; end  (just debugging)
+    
+    
+  end
+  
+  
+  /*for testing purposes */   
+  always @(DTC_S3 | syn_S3) begin
+    if(syn_S3[4:0] == 5'b00000) //case 1: no error
+      $display("no error in the data, the data is stored in memory location:%d",S23_WRADDR);
+    else if(syn_S3[4:1] != 4'b0000 && syn_S3[0]==1)//case 2: one bit error
+      $display("a single error in the data, the data is stored in memory location:%d",S23_WRADDR);  
+    else if(syn_S3[4:1] != 5'b00000 && syn_S3[0]==0) //case 3: double error 
+      $display("there is double errors in the data, the data is stored in memory location:%d",S23_WRADDR);
+  end
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+endmodule
+
+
+
+
+
+module memory(RDADDR,WRADDR,DATAin,DATAout,clk);
+  input [12:0] DATAin;//data to be written
+  input [5:0] RDADDR;//address to read from
+  input [5:0] WRADDR;//address to write at
+  output reg [12:0] DATAout;//data to be read
+  input clk;
+  
+  reg [12:0] RAM [0:63]; //memory of 64 location each location can store 13 bits
+
+  initial begin
+    /* initializing the memory with data*/
+    
+    //even parity//
+    
+    /*correct data*/
+    RAM[0]=13'b0000000000000;
+    RAM[1]=13'b1001010001011;
+    RAM[2]=13'b1011100101011;
+    RAM[3]=13'b1111011101110;
+    RAM[4]=13'b1000100101101;
+    RAM[5]=13'b1101111100100;
+    RAM[6]=13'b1110100101110;
+    RAM[7]=13'b0110001010110;
+    /*end of correct data*/
+    
+    /*data with one bit error*/
+    RAM[8]=13'b0000010000000;
+    RAM[9]=13'b1001010001111;
+    RAM[10]=13'b1001100101011;
+    RAM[11]=13'b1110011101110;
+    RAM[12]=13'b1001100101101;
+    RAM[13]=13'b1101111110100;
+    RAM[14]=13'b1110110101110;
+    RAM[15]=13'b0100001010110;
+    /*end of the data with one bit error*/
+    
+    /*data with two bits errors*/
+    RAM[16]=13'b0100001000000;
+    RAM[17]=13'b1000010001111;
+    RAM[18]=13'b0011000101011;
+    RAM[19]=13'b1110010101110;
+    RAM[20]=13'b1000110111101;
+    RAM[21]=13'b1101101100000;
+    RAM[22]=13'b1100100101100;
+    RAM[23]=13'b0100011010110;
+    /*end of the data with two bits errors*/
+    
+    
+    
+    
+    //odd parity//
+//uncomment from here    
+//     /*correct data*/
+//     RAM[0]=13'b0100011100001;
+//     RAM[1]=13'b1001110011100;
+//     RAM[2]=13'b1011000111100;
+//     RAM[3]=13'b1111111111001;
+//     /*end of correct data*/
+    
+//     /*data with one bit error*/
+//     RAM[4]=13'b0100011101001;
+//     RAM[5]=13'b1001111011100;
+//     RAM[6]=13'b1011100111100;
+//     RAM[7]=13'b1011111111001;	
+//     /*end of the data with one bit error*/
+    
+//     /*data with two bits errors*/
+//     RAM[8]=13'b1100011110001;
+//     RAM[9]=13'b1001111111100;
+//     RAM[10]=13'b1010010111100;
+//     RAM[11]=13'b1110011111001;
+//     /*end of the data with two bits errors
+    
+    /*end of initailizing the memory*/
+    
+  end
+  
+  
+  always@(posedge clk)begin
+    
+    #1 RAM[WRADDR]<=DATAin;
+    #1 DATAout<=RAM[RDADDR];
+  end
+
+  
+endmodule 
+
+
+
+
+
+//this module is used to detect errors, if any occurs
+//DTC = Data To Check
+module ErrorDetection(syn,DTC,EvenOdd);
+  input [12:0] DTC;
+  input EvenOdd;
+  output [4:0] syn; //syn = syndrome
+  
+  //generating syn bits for the single error correction
+  xor syn1 (syn[1],DTC[1],DTC[3],DTC[5],DTC[7],DTC[9],DTC[11],EvenOdd);
+  xor syn2 (syn[2],DTC[2],DTC[3],DTC[6],DTC[7],DTC[10],DTC[11],EvenOdd);
+  xor syn3 (syn[3],DTC[4],DTC[5],DTC[6],DTC[7],DTC[12],EvenOdd);
+  xor syn4 (syn[4],DTC[8],DTC[9],DTC[10],DTC[11],DTC[12],EvenOdd);
+	
+  //generating check bit for the double error detection
+  assign syn[0] = ^DTC[12:0]^EvenOdd;
+
+endmodule
+
+
+
+
+
+
+
+module ErrorCorrection(CD,DTC,syn);
+  output reg [12:0] CD; //Corrected Data
+  input [12:0] DTC; //data to correct
+  input [4:0] syn; //syndrome from the Error detection module
+  
+  
+  always @(DTC | syn) begin
+    if(syn[4:0] == 5'b00000) //case 1: no error
+    begin
+      CD=DTC;
+    end
+    else if(syn[4:1] != 4'b0000 && syn[0]==1)//case 2: one bit error -----> correct the error
+      begin
+        CD=DTC;
+        CD[syn[4:1]]= ~CD[syn[4:1]]; //toggle the bit with the error
+        
+      end
+    else if(syn[4:1] != 5'b00000 && syn[0]==0) //case 3: double error 
+      begin
+        CD=DTC;
+         // output the corrupted data without modification
+    end
+    
+  end
+  
+  
+endmodule 
+
+
+
+module pipeline_TB;
+  reg clk=0;
+  reg EO=0;
+  //to choose the odd parity the data encoded in the memory should
+  //have been encoded using the odd parity as well,please comment down
+  //the data even encoded data in the memory module and uncomment the
+  //odd encoded data in the memory module as well
+  always clk =#3 ~clk;
+  
+  pipeline HammingPipline(clk,EO);
+  
+  
+  
+endmodule

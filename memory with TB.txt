@@ -1,0 +1,96 @@
+
+
+
+module memory(RDADDR,WRADDR,DATAin,DATAout,clk);
+  input [12:0] DATAin;//data to be written
+  input [5:0] RDADDR;//address to read from
+  input [5:0] WRADDR;//address to write at
+  output reg [12:0] DATAout;//data to be read
+  input clk;
+  
+  reg [12:0] RAM [0:63]; //memory of 64 location each location can store 13 bits
+
+  initial begin
+    /* initializing the memory with data*/
+    
+    /*correct data*/
+    RAM[0]=13'b0000000000000;
+    RAM[1]=13'b1001010001011;
+    RAM[2]=13'b1011100101011;
+    RAM[3]=13'b1111011101110;
+    RAM[4]=13'b1000100101101;
+    RAM[5]=13'b1101111100100;
+    RAM[6]=13'b1110100101110;
+    RAM[7]=13'b0110001010110;
+    /*end of correct data*/
+    
+    /*data with one bit error*/
+    RAM[8]=13'b0000010000000;
+    RAM[9]=13'b1001010001111;
+    RAM[10]=13'b1001100101011;
+    RAM[11]=13'b1110011101110;
+    RAM[12]=13'b1001100101101;
+    RAM[13]=13'b1101111110100;
+    RAM[14]=13'b1110110101110;
+    RAM[15]=13'b0100001010110;
+    /*end of the data with one bit error*/
+    
+    /*data with two bits errors*/
+    RAM[16]=13'b0100001000000;
+    RAM[17]=13'b1000010001111;
+    RAM[18]=13'b0011000101011;
+    RAM[19]=13'b1110010101110;
+    RAM[20]=13'b1000110111101;
+    RAM[21]=13'b1101101100000;
+    RAM[22]=13'b1100100101100;
+    RAM[23]=13'b0100011010110;
+    /*end of the data with two bits errors*/
+    /*end of initailizing the memory*/
+    
+  end
+  
+  
+  always@(posedge clk)begin
+    
+    #1 RAM[WRADDR]=DATAin;
+
+    #1 DATAout=RAM[RDADDR];
+  end
+
+  
+endmodule 
+
+
+
+
+module memory_TB;
+  integer i =0;
+  wire [12:0] DATAout;
+  reg clk=0;
+  reg [5:0] RDADDR;
+  reg [5:0] WRADDR;
+  reg [12:0] DATAin;
+  
+  always #10 clk = ~clk;
+  
+  memory mem(i[5:0],WRADDR,DATAin,DATAout,clk) ;
+  
+
+  
+  always @(posedge clk)
+    begin
+      if(i<24)begin /*checking the original data stored in the memory*/
+        #5 $display("Data at location %b  is  %b",i[5:0],DATAout);
+        i=i+1;
+      end
+      else begin /*checking the writing functionality of the memory*/
+        if(i<48)begin
+        i=i+1;
+        DATAin=i[12:0];
+        WRADDR=i[5:0];
+        #5 $display("Data %b is written in address %b ,the data read from the same address is %b ",i[12:0],i[5:0],DATAout);
+        end
+      end
+    end
+endmodule
+

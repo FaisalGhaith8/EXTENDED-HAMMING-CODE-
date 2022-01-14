@@ -1,0 +1,49 @@
+//This module is used to create the extended hamming code for a raw piece of data
+//the input is a byte of data and the output is a 13-bit encoded data
+module HammingEncoder(Encdata,data,EvenOdd);
+  output [12:0] Encdata;
+  input [7:0] data;
+  input EvenOdd;// select what kind of parity to be used, even = 0 , odd = 1
+  wire w1,w2,w3,w4,DEDbit;
+  
+  //concatination of original data and the check bits to create the encoded data
+  assign Encdata = {data[7:4],w4,data[3:1],w3,data[0],w2,w1,DEDbit};
+  
+  //generating the check bits for the single error correction
+  xor C1(w1,data[0],data[1],data[3],data[4],data[6],EvenOdd);
+  xor C2 (w2,data[0],data[2],data[3],data[5],data[6],EvenOdd);
+  xor C3 (w3,data[1],data[2],data[3],data[7],EvenOdd);
+  xor C4 (w4,data[4],data[5],data[6],data[7],EvenOdd);
+  
+  //generating the final parity bit for the double error detection
+  assign DEDbit = ^Encdata[12:1]^EvenOdd;
+  
+  //another way to compute check bits
+  // xor C1(w1,Encdata[3],Encdata[5],Encdata[7],Encdata[9],Encdata[11]);
+  //xor C2 (w2,Encdata[3],Encdata[6],Encdata[7],Encdata[10],Encdata[11]);
+  //xor C3 (w3,Encdata[5],Encdata[6],Encdata[7],Encdata[12]);
+  // xor C4 (w4,Encdata[9],Encdata[10],Encdata[11],Encdata[12]);
+  
+endmodule
+
+module HammingEncoder_TB;
+  reg [7:0]data1;
+  wire[12:0] out,outmem;
+  reg EO=1;
+  HammingEncoder  enc(out,data1,EO);
+
+  
+  initial begin
+    $display("data \t\t\t encoded data \n");
+     $monitor("%b \t\t %b",data1,out);
+  end
+  
+ initial begin
+       data1=0;
+    #1 data1=8'b10011001;
+    #1 data1=8'b10110011;
+    #1 data1=255;
+  end
+endmodule
+
+
